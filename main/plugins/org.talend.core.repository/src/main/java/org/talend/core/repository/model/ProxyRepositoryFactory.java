@@ -113,14 +113,11 @@ import org.talend.core.model.repository.RepositoryViewObject;
 import org.talend.core.repository.CoreRepositoryPlugin;
 import org.talend.core.repository.constants.Constant;
 import org.talend.core.repository.constants.FileConstants;
-import org.talend.core.repository.document.IDocumentationService;
-import org.talend.core.repository.document.IGenerateAllDocumentation;
 import org.talend.core.repository.i18n.Messages;
 import org.talend.core.repository.recyclebin.RecycleBinManager;
 import org.talend.core.repository.utils.RepositoryPathProvider;
 import org.talend.core.repository.utils.XmiResourceManager;
 import org.talend.core.runtime.CoreRuntimePlugin;
-import org.talend.core.runtime.process.ITalendProcessJavaProject;
 import org.talend.core.runtime.repository.item.ItemProductKeys;
 import org.talend.core.runtime.services.IMavenUIService;
 import org.talend.core.runtime.util.ItemDateParser;
@@ -137,6 +134,7 @@ import org.talend.repository.documentation.ERepositoryActionName;
 import org.talend.repository.model.IProxyRepositoryFactory;
 import org.talend.repository.model.RepositoryConstants;
 import org.talend.utils.io.FilesUtils;
+
 import orgomg.cwm.objectmodel.core.ModelElement;
 
 /**
@@ -2064,7 +2062,20 @@ public final class ProxyRepositoryFactory implements IProxyRepositoryFactory {
                 }
                 sb.append(technicalLabel);
             }
-            throw new BusinessException(Messages.getString("ProxyRepositoryFactory.errorCanNotAccessProject", sb.toString()));
+            if (!CommonsPlugin.isHeadless()) {
+                org.eclipse.swt.widgets.Display.getDefault().syncExec(new Runnable() {
+
+                    @Override
+                    public void run() {
+                        org.eclipse.jface.dialogs.MessageDialog.openError(
+                                org.eclipse.swt.widgets.Display.getDefault().getActiveShell(),
+                                Messages.getString("ProxyRepositoryFactory.titleCanNotAccessProjects"), //$NON-NLS-1$
+                                Messages.getString("ProxyRepositoryFactory.errorCanNotAccessProjects", sb.toString())); //$NON-NLS-1$
+                    }
+                });
+            }
+            ExceptionHandler.process(
+                    new BusinessException(Messages.getString("ProxyRepositoryFactory.errorCanNotAccessProject", sb.toString()))); //$NON-NLS-1$
         }
 
         Map<String, List<ProjectReference>> projectRefMap = new HashMap<String, List<ProjectReference>>();
