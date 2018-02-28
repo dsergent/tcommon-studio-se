@@ -306,11 +306,11 @@ public class ProjectRepositoryNode extends RepositoryNode implements IProjectRep
         collectRepositoryNodes(curParentNode.getChildren());
     }
 
-    private void collectRepositoryNodes(List<IRepositoryNode> nodes) {
+    public void collectRepositoryNodes(List<IRepositoryNode> nodes) {
 
         if (nodes != null) {
             for (IRepositoryNode node : nodes) {
-                if (node.getParent() instanceof ProjectRepositoryNode) { // root node of type
+                if (node.shouldCollectRepositoryNode()) {
                     ERepositoryObjectType roType = (ERepositoryObjectType) node.getProperties(EProperties.CONTENT_TYPE);
                     if (roType != null) { // bin is null
                         String typeName = roType.name();

@@ -36,6 +36,7 @@ import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.m2e.core.MavenPlugin;
+import org.talend.commons.CommonsPlugin;
 import org.talend.commons.exception.ExceptionHandler;
 import org.talend.core.GlobalServiceRegister;
 import org.talend.core.model.general.Project;
@@ -203,24 +204,19 @@ public class AggregatorPomsHelper {
         createTemplatePom.create(monitor);
     }
 
-    public static void buildAndInstallCodesProject(IProgressMonitor monitor, ERepositoryObjectType codeType)
+    public static void buildAndInstallCodesProject(IProgressMonitor monitor, ERepositoryObjectType codeType) throws Exception {
+        buildAndInstallCodesProject(monitor, codeType, true, false);
+    }
+
+    public static void buildAndInstallCodesProject(IProgressMonitor monitor, ERepositoryObjectType codeType, boolean install, boolean forceBuild)
             throws Exception {
-        if (!BuildCacheManager.getInstance().isCodesBuild(codeType)) {
+        if (!CommonsPlugin.isHeadless()) {
             Job job = new Job("Install " + codeType.getLabel()) {
 
                 @Override
                 protected IStatus run(IProgressMonitor monitor) {
                     try {
-                        ITalendProcessJavaProject codeProject = getCodesProject(codeType);
-
-                        codeProject.buildModules(new NullProgressMonitor(), null, null);
-
-                        Map<String, Object> argumentsMap = new HashMap<>();
-                        argumentsMap.put(TalendProcessArgumentConstant.ARG_GOAL, TalendMavenConstants.GOAL_INSTALL);
-                        argumentsMap.put(TalendProcessArgumentConstant.ARG_PROGRAM_ARGUMENTS, "-Dmaven.main.skip=true"); //$NON-NLS-1$
-                        codeProject.buildModules(new NullProgressMonitor(), null, argumentsMap);
-                        BuildCacheManager.getInstance().updateCodeLastBuildDate(codeType);
-
+                        build(codeType, install, forceBuild, monitor);
                         return org.eclipse.core.runtime.Status.OK_STATUS;
                     } catch (Exception e) {
                         return new org.eclipse.core.runtime.Status(IStatus.ERROR, DesignerMavenPlugin.PLUGIN_ID, 1,
@@ -232,6 +228,24 @@ public class AggregatorPomsHelper {
             job.setUser(false);
             job.setPriority(Job.INTERACTIVE);
             job.schedule();
+        } else {
+            synchronized (codeType) {
+                build(codeType, install, forceBuild, monitor);
+            }
+        }
+    }
+
+    private static void build(ERepositoryObjectType codeType, boolean install, boolean forceBuild, IProgressMonitor monitor) throws Exception {
+        if (forceBuild || !BuildCacheManager.getInstance().isCodesBuild(codeType)) {
+            ITalendProcessJavaProject codeProject = getCodesProject(codeType);
+            codeProject.buildModules(monitor, null, null);
+            if (install) {
+                Map<String, Object> argumentsMap = new HashMap<>();
+                argumentsMap.put(TalendProcessArgumentConstant.ARG_GOAL, TalendMavenConstants.GOAL_INSTALL);
+                argumentsMap.put(TalendProcessArgumentConstant.ARG_PROGRAM_ARGUMENTS, "-Dmaven.main.skip=true"); //$NON-NLS-1$
+                codeProject.buildModules(monitor, null, argumentsMap);
+                BuildCacheManager.getInstance().updateCodeLastBuildDate(codeType);
+            }
         }
     }
 
