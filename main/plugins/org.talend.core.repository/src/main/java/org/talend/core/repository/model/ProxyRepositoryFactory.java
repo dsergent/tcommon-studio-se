@@ -49,7 +49,6 @@ import org.eclipse.jface.dialogs.IDialogConstants;
 import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.jface.dialogs.MessageDialog;
 import org.eclipse.swt.SWT;
-import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.MessageBox;
 import org.eclipse.swt.widgets.Shell;
@@ -123,6 +122,7 @@ import org.talend.core.repository.utils.XmiResourceManager;
 import org.talend.core.runtime.CoreRuntimePlugin;
 import org.talend.core.runtime.repository.item.ItemProductKeys;
 import org.talend.core.runtime.services.IMavenUIService;
+import org.talend.core.runtime.services.ITaCoKitService;
 import org.talend.core.runtime.util.ItemDateParser;
 import org.talend.core.runtime.util.JavaHomeUtil;
 import org.talend.core.service.ICoreUIService;
@@ -1906,7 +1906,9 @@ public final class ProxyRepositoryFactory implements IProxyRepositoryFactory {
                 currentMonitor.beginTask(Messages.getString("ProxyRepositoryFactory.logonInProgress"), 1); //$NON-NLS-1$
                 project.setReferenceProjectProvider(null);
                 initEmfProjectContent();
-                project.setEmfProject(getEmfProjectContent(project.getTechnicalLabel()));
+                if (getEmfProjectContent(project.getTechnicalLabel()) != null) {
+                    project.setEmfProject(getEmfProjectContent(project.getTechnicalLabel()));
+                }
                 getRepositoryContext().setProject(project);
 
                 currentMonitor = subMonitor.newChild(1, SubMonitor.SUPPRESS_NONE);
@@ -2052,6 +2054,15 @@ public final class ProxyRepositoryFactory implements IProxyRepositoryFactory {
 
                 fullLogonFinished = true;
                 this.repositoryFactoryFromProvider.afterLogon(monitor);
+                if (GlobalServiceRegister.getDefault().isServiceRegistered(ITaCoKitService.class)) {
+                    ITaCoKitService tacokitService = (ITaCoKitService) GlobalServiceRegister.getDefault()
+                            .getService(ITaCoKitService.class);
+                    try {
+                        tacokitService.checkMigration(monitor);
+                    } catch (Exception e) {
+                        ExceptionHandler.process(e);
+                    }
+                }
             } finally {
                 TimeMeasure.end("logOnProject"); //$NON-NLS-1$
                 TimeMeasure.display = false;
