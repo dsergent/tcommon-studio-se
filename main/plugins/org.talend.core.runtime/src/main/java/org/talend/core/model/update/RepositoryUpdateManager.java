@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.emf.common.util.EList;
 import org.eclipse.emf.common.util.EMap;
 import org.eclipse.jface.dialogs.MessageDialog;
@@ -32,6 +33,7 @@ import org.eclipse.jface.operation.IRunnableWithProgress;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.ui.IEditorReference;
 import org.eclipse.ui.PlatformUI;
+import org.talend.commons.CommonsPlugin;
 import org.talend.commons.exception.ExceptionHandler;
 import org.talend.commons.exception.PersistenceException;
 import org.talend.core.GlobalServiceRegister;
@@ -105,6 +107,7 @@ import org.talend.designer.core.model.utils.emf.talendfile.ContextParameterType;
 import org.talend.designer.core.model.utils.emf.talendfile.ContextType;
 import org.talend.designer.runprocess.ItemCacheManager;
 import org.talend.repository.model.IProxyRepositoryFactory;
+import org.talend.repository.model.IProxyRepositoryService;
 import org.talend.repository.model.IRepositoryService;
 import org.talend.repository.model.RepositoryNode;
 
@@ -318,7 +321,7 @@ public abstract class RepositoryUpdateManager {
         if (checked) {
             final List<UpdateResult> results = new ArrayList<UpdateResult>();
             boolean cancelable = !needForcePropagation();
-            IRunnableWithProgress runnable = new IRunnableWithProgress() {
+            final IRunnableWithProgress runnable = new IRunnableWithProgress() {
 
                 @SuppressWarnings("unchecked")
                 @Override
@@ -332,9 +335,13 @@ public abstract class RepositoryUpdateManager {
             };
 
             try {
-                // final ProgressMonitorJobsDialog dialog = new ProgressMonitorJobsDialog(null);
-                final ProgressMonitorDialog dialog = new ProgressMonitorDialog(null);
-                dialog.run(true, cancelable, runnable);
+                if (CommonsPlugin.isHeadless() || Display.getCurrent() == null) {
+                    runnable.run(new NullProgressMonitor());
+                } else {
+                    // final ProgressMonitorJobsDialog dialog = new ProgressMonitorJobsDialog(null);
+                    final ProgressMonitorDialog dialog = new ProgressMonitorDialog(null);
+                    dialog.run(true, cancelable, runnable);
+                }
 
                 // PlatformUI.getWorkbench().getProgressService().run(true, true, runnable);
             } catch (InvocationTargetException e) {
@@ -1095,6 +1102,9 @@ public abstract class RepositoryUpdateManager {
     }
 
     public static IEditorReference[] getEditors() {
+        if (CommonsPlugin.isHeadless() || !getProxyRepositoryFactory().isFullLogonFinished()) {
+            return new IEditorReference[0];
+        }
         final List<IEditorReference> list = new ArrayList<IEditorReference>();
         Display.getDefault().syncExec(new Runnable() {
 
@@ -1429,17 +1439,20 @@ public abstract class RepositoryUpdateManager {
         return updateDBConnection(connection, show, false);
     }
 
+    public static boolean updateDBConnection(ConnectionItem connectionItem, boolean show, final boolean onlySimpleShow) {
+        return updateDBConnection(connectionItem, RelationshipItemBuilder.LATEST_VERSION, show, onlySimpleShow);
+    }
+
     /**
      * 
      * ggu Comment method "updateQuery".
      * 
      * if show is false, will work for context menu action.
      */
-    public static boolean updateDBConnection(ConnectionItem connectionItem, boolean show, final boolean onlySimpleShow) {
-        List<IRepositoryViewObject> updateList = new ArrayList<IRepositoryViewObject>();
-        IProxyRepositoryFactory factory = CoreRuntimePlugin.getInstance().getProxyRepositoryFactory();
+    public static boolean updateDBConnection(ConnectionItem connectionItem, String version, boolean show,
+            final boolean onlySimpleShow) {
         List<Relation> relations = RelationshipItemBuilder.getInstance().getItemsRelatedTo(connectionItem.getProperty().getId(),
-                RelationshipItemBuilder.LATEST_VERSION, RelationshipItemBuilder.PROPERTY_RELATION);
+                version, RelationshipItemBuilder.PROPERTY_RELATION);
 
         RepositoryUpdateManager repositoryUpdateManager = new RepositoryUpdateManager(connectionItem, relations) {
 
@@ -2415,6 +2428,11 @@ public abstract class RepositoryUpdateManager {
 
         };
         return repositoryUpdateManager.doWork(true, false);
+    }
+
+    private static IProxyRepositoryFactory getProxyRepositoryFactory() {
+        return ((IProxyRepositoryService) GlobalServiceRegister.getDefault().getService(IProxyRepositoryService.class))
+                .getProxyRepositoryFactory();
     }
 
 }
