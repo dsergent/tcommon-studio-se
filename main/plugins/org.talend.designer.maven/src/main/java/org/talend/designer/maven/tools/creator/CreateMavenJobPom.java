@@ -337,91 +337,16 @@ public class CreateMavenJobPom extends AbstractMavenProcessorPom {
 
     @Override
     protected void afterCreate(IProgressMonitor monitor) throws Exception {
-        setPomForHDInsight(monitor);
-
-        // // check for children jobs
-        // Set<String> childrenGroupIds = new HashSet<>();
-        // final Set<JobInfo> clonedChildrenJobInfors = getJobProcessor().getBuildChildrenJobs();
-        // // main job built, should never be in the children list, even if recursive
-        // clonedChildrenJobInfors.remove(LastGenerationInfo.getInstance().getLastMainJob());
-
-        // for (JobInfo child : clonedChildrenJobInfors) {
-        // if (child.getFatherJobInfo() != null) {
-        // Property childProperty = null;
-        // ProcessItem childItem = child.getProcessItem();
-        // if (childItem != null) {
-        // childProperty = childItem.getProperty();
-        // } else {
-        // String jobId = child.getJobId();
-        // if (jobId != null) {
-        // IProxyRepositoryFactory proxyRepositoryFactory = CoreRuntimePlugin.getInstance()
-        // .getProxyRepositoryFactory();
-        // IRepositoryViewObject specificVersion = proxyRepositoryFactory.getSpecificVersion(jobId,
-        // child.getJobVersion(), true);
-        // if (specificVersion != null) {
-        // childProperty = specificVersion.getProperty();
-        // }
-        // }
-        // }
-        //
-        // if (childProperty != null) {
-        // final String childGroupId = PomIdsHelper.getJobGroupId(childProperty);
-        // if (childGroupId != null) {
-        // childrenGroupIds.add(childGroupId);
-        // }
-        // }
-        // }
-        // }
-
         generateAssemblyFile(monitor, null);
-
-        // final IProcess process = getJobProcessor().getProcess();
-        // Map<String, Object> args = new HashMap<String, Object>();
-        // args.put(IPomJobExtension.KEY_PROCESS, process);
-        // args.put(IPomJobExtension.KEY_ASSEMBLY_FILE, getAssemblyFile());
-        // args.put(IPomJobExtension.KEY_CHILDREN_JOBS_GROUP_IDS, childrenGroupIds);
-        //
-        // PomJobExtensionRegistry.getInstance().updatePom(monitor, getPomFile(), args);
-
+        
         if (GlobalServiceRegister.getDefault().isServiceRegistered(IRunProcessService.class)) {
-            IRunProcessService service = (IRunProcessService) GlobalServiceRegister.getDefault().getService(IRunProcessService.class);
+            IRunProcessService service = (IRunProcessService) GlobalServiceRegister.getDefault()
+                    .getService(IRunProcessService.class);
             if (!service.isGeneratePomOnly()) {
                 generateTemplates(true);
             }
         }
 
-    }
-
-    private void setPomForHDInsight(IProgressMonitor monitor) {
-        if (ProcessUtils.jarNeedsToContainContext()) {
-            try {
-                Model model = MODEL_MANAGER.readMavenModel(getPomFile());
-                List<Plugin> plugins = new ArrayList<Plugin>(model.getBuild().getPlugins());
-                out: for (Plugin plugin : plugins) {
-                    if (plugin.getArtifactId().equals("maven-jar-plugin")) { //$NON-NLS-1$
-                        List<PluginExecution> pluginExecutions = plugin.getExecutions();
-                        for (PluginExecution pluginExecution : pluginExecutions) {
-                            if (pluginExecution.getId().equals("default-jar")) { //$NON-NLS-1$
-                                Object object = pluginExecution.getConfiguration();
-                                if (object instanceof Xpp3Dom) {
-                                    Xpp3Dom configNode = (Xpp3Dom) object;
-                                    Xpp3Dom includesNode = configNode.getChild("includes"); //$NON-NLS-1$
-                                    Xpp3Dom includeNode = new Xpp3Dom("include"); //$NON-NLS-1$
-                                    includeNode.setValue("${talend.job.path}/contexts/*.properties"); //$NON-NLS-1$
-                                    includesNode.addChild(includeNode);
-
-                                    model.getBuild().setPlugins(plugins);
-                                    PomUtil.savePom(monitor, model, getPomFile());
-                                    break out;
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                ExceptionHandler.process(e);
-            }
-        }
     }
 
     protected void generateAssemblyFile(IProgressMonitor monitor, final Set<JobInfo> clonedChildrenJobInfors) throws Exception {
@@ -490,8 +415,8 @@ public class CreateMavenJobPom extends AbstractMavenProcessorPom {
             addScriptAddition(unixScriptAdditionValue, contextPart);
         }
         // context params
-        List paramsList = ProcessUtils.getOptionValue(getArgumentsMap(),
-                TalendProcessArgumentConstant.ARG_CONTEXT_PARAMS, (List) null);
+        List paramsList = ProcessUtils.getOptionValue(getArgumentsMap(), TalendProcessArgumentConstant.ARG_CONTEXT_PARAMS,
+                (List) null);
         if (paramsList != null && !paramsList.isEmpty()) {
             StringBuffer contextParamPart = new StringBuffer(100);
             // do codes same as JobScriptsManager.getSettingContextParametersValue
@@ -572,17 +497,15 @@ public class CreateMavenJobPom extends AbstractMavenProcessorPom {
                 templateParameters);
         batContent = StringUtils.replaceEach(batContent,
                 new String[] { "${talend.job.jvmargs}", "${talend.job.bat.classpath}", "${talend.job.class}",
-        "${talend.job.bat.addition}" },
-                new String[] { jvmArgsStr.toString(), getWindowsClasspath(), jobClass,
-                windowsScriptAdditionValue.toString() });
-        
+                        "${talend.job.bat.addition}" },
+                new String[] { jvmArgsStr.toString(), getWindowsClasspath(), jobClass, windowsScriptAdditionValue.toString() });
+
         String shContent = MavenTemplateManager.getProjectSettingValue(IProjectSettingPreferenceConstants.TEMPLATE_SH,
                 templateParameters);
         shContent = StringUtils.replaceEach(shContent,
                 new String[] { "${talend.job.jvmargs}", "${talend.job.sh.classpath}", "${talend.job.class}",
                         "${talend.job.sh.addition}" },
-                new String[] { jvmArgsStr.toString(), getUnixClasspath(), jobClass,
-                        unixScriptAdditionValue.toString() });
+                new String[] { jvmArgsStr.toString(), getUnixClasspath(), jobClass, unixScriptAdditionValue.toString() });
 
         String psContent = MavenTemplateManager.getProjectSettingValue(IProjectSettingPreferenceConstants.TEMPLATE_PS,
                 templateParameters);
@@ -592,8 +515,8 @@ public class CreateMavenJobPom extends AbstractMavenProcessorPom {
                 new String[] { jvmArgsStrPs1.toString(), getWindowsClasspathForPs1(), jobClass,
                         windowsScriptAdditionValue.toString() });
 
-        String jobInfoContent = MavenTemplateManager
-                .getProjectSettingValue(IProjectSettingPreferenceConstants.TEMPLATE_JOB_INFO, templateParameters);
+        String jobInfoContent = MavenTemplateManager.getProjectSettingValue(IProjectSettingPreferenceConstants.TEMPLATE_JOB_INFO,
+                templateParameters);
 
         IFolder templateFolder = codeProject.getTemplatesFolder();
         IFile shFile = templateFolder.getFile(IProjectSettingTemplateConstants.JOB_RUN_SH_TEMPLATE_FILE_NAME);
@@ -618,16 +541,18 @@ public class CreateMavenJobPom extends AbstractMavenProcessorPom {
         StringBuilder _3rdPartylibExcludes = new StringBuilder();
         StringBuilder jobIncludes = new StringBuilder();
 
-        // add children jobs
-        Set<JobInfo> childrenJobInfo = getJobProcessor().getBuildChildrenJobs();
         Set<String> childrenCoordinate = new HashSet<>();
-        for (JobInfo jobInfo : childrenJobInfo) {
-            Property property = jobInfo.getProcessItem().getProperty();
-            String groupId = PomIdsHelper.getJobGroupId(property);
-            String artifactId = PomIdsHelper.getJobArtifactId(jobInfo);
-            String coordinate = groupId + ":" + artifactId; //$NON-NLS-1$
-            addItem(jobIncludes, coordinate, SEPARATOR);
-            childrenCoordinate.add(coordinate);
+        if (!hasLoopDependency()) {
+            // add children jobs
+            Set<JobInfo> childrenJobInfo = getJobProcessor().getBuildChildrenJobs();
+            for (JobInfo jobInfo : childrenJobInfo) {
+                Property property = jobInfo.getProcessItem().getProperty();
+                String groupId = PomIdsHelper.getJobGroupId(property);
+                String artifactId = PomIdsHelper.getJobArtifactId(jobInfo);
+                String coordinate = groupId + ":" + artifactId; //$NON-NLS-1$
+                addItem(jobIncludes, coordinate, SEPARATOR);
+                childrenCoordinate.add(coordinate);
+            }
         }
         // add parent job
         Property parentProperty = this.getJobProcessor().getProperty();
@@ -670,7 +595,8 @@ public class CreateMavenJobPom extends AbstractMavenProcessorPom {
             for (ModuleNeeded moduleNeeded : fullModulesList) {
                 MavenArtifact artifact = MavenUrlHelper.parseMvnUrl(moduleNeeded.getMavenUri());
                 String coordinate = artifact.getGroupId() + ":" + artifact.getArtifactId(); //$NON-NLS-1$
-                if (!childrenCoordinate.contains(coordinate) && !talendLibCoordinate.contains(coordinate) && !_3rdDepLib.contains(coordinate)) {
+                if (!childrenCoordinate.contains(coordinate) && !talendLibCoordinate.contains(coordinate)
+                        && !_3rdDepLib.contains(coordinate)) {
                     if (MavenConstants.DEFAULT_LIB_GROUP_ID.equals(artifact.getGroupId())
                             || artifact.getGroupId().startsWith(projectGroupId)) {
                         addItem(talendlibIncludes, coordinate, SEPARATOR);
@@ -679,10 +605,11 @@ public class CreateMavenJobPom extends AbstractMavenProcessorPom {
                     }
                 }
             }
-             if (_3rdPartylibExcludes.length() == 0) {
-                 // if removed, it might add many unwanted dependencies to the libs folder. (or we should simply remove the full empty block of dependencySet)
-                 addItem(_3rdPartylibExcludes, "null:null", SEPARATOR); //$NON-NLS-1$
-             }
+            if (_3rdPartylibExcludes.length() == 0) {
+                // if removed, it might add many unwanted dependencies to the libs folder. (or we should simply remove
+                // the full empty block of dependencySet)
+                addItem(_3rdPartylibExcludes, "null:null", SEPARATOR); //$NON-NLS-1$
+            }
         } catch (CoreException e) {
             ExceptionHandler.process(e);
         }

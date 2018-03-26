@@ -1,6 +1,6 @@
 // ============================================================================
 //
-// Copyright (C) 2006-2018 Talend Inc. - www.talend.com
+// Copyright (C) 2006-2014 Talend Inc. - www.talend.com
 //
 // This source code is available under agreement available at
 // %InstallDIR%\features\org.talend.rcp.branding.%PRODUCTNAME%\%PRODUCTNAME%license.txt
@@ -10,19 +10,20 @@
 // 9 rue Pages 92150 Suresnes, France
 //
 // ============================================================================
-package org.talend.core.runtime.repository.build;
+package org.talend.designer.runprocess;
 
-import org.eclipse.core.runtime.IProgressMonitor;
+import java.util.Set;
+
+import org.talend.core.model.general.ModuleNeeded;
 
 /**
- * DOC ggu class global comment. Detailled comment
+ * created by nrousseau on Mar 24, 2018
+ * Detailled comment
+ *
  */
-public interface IMavenPomCreator {
+public interface IBigDataProcessor extends IProcessor {
 
-    void create(IProgressMonitor monitor) throws Exception;
+    public boolean needsShade();
 
-    // only need to syncCodesPoms for main job
-    void setSyncCodesPoms(boolean isMainJob);
-
-    public void setHasLoopDependency(boolean hasLoopDependency);
+    public Set<ModuleNeeded> getShadedModulesExclude();
 }
