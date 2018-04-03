@@ -171,23 +171,26 @@ public class BuildCacheManager {
         currentJobmodules.clear();
         subjobProjects.clear();
         subjobMavenProjects.clear();
-
-        // clean joblet cache
-        // currentJobletCache.clear();
-        // currentJobletmodules.clear();
-
         aggregatorPomsHelper = new AggregatorPomsHelper();
+    }
+
+    public void clearCurrentJobletCache() {
+        // clean joblet cache
+        currentJobletCache.clear();
+        currentJobletmodules.clear();
     }
 
     public void performBuildSuccess() {
         jobCache.putAll(currentJobCache);
         jobletCache.putAll(currentJobletCache);
         clearCurrentCache();
+        clearCurrentJobletCache();
     }
 
     public void performBuildFailure() {
         restoreSubjobPoms();
         clearCurrentCache();
+        clearCurrentJobletCache();
     }
 
     public void build(IProgressMonitor monitor, Map<String, Object> argumentsMap) throws Exception {
@@ -239,10 +242,10 @@ public class BuildCacheManager {
         return !currentJobmodules.isEmpty() || !currentJobletmodules.isEmpty();
     }
 
-    public void updateCodesLastChangeDate(ERepositoryObjectType codeType, Property property) {
-        Date currentLastChangeDate = getTimestamp(property);
+    public void updateCodesLastChangeDate(ERepositoryObjectType codeType) {
+        Date currentLastChangeDate = new Date();
         Date cacheLastChangeDate = codesLastChangeCache.get(codeType);
-        if (cacheLastChangeDate == null || currentLastChangeDate.compareTo(cacheLastChangeDate) != 0) {
+        if (cacheLastChangeDate == null || currentLastChangeDate.compareTo(cacheLastChangeDate) > 0) {
             codesLastChangeCache.put(codeType, currentLastChangeDate);
         }
     }
