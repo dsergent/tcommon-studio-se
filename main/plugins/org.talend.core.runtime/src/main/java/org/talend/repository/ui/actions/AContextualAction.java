@@ -30,6 +30,7 @@ import org.eclipse.ui.IEditorInput;
 import org.eclipse.ui.IEditorPart;
 import org.eclipse.ui.IEditorReference;
 import org.eclipse.ui.ISaveablePart2;
+import org.eclipse.ui.IViewPart;
 import org.eclipse.ui.IViewReference;
 import org.eclipse.ui.IWorkbench;
 import org.eclipse.ui.IWorkbenchPage;
@@ -56,7 +57,6 @@ import org.talend.core.model.repository.RepositoryViewObject;
 import org.talend.core.model.utils.RepositoryManagerHelper;
 import org.talend.core.runtime.CoreRuntimePlugin;
 import org.talend.core.runtime.i18n.Messages;
-import org.talend.core.ui.IHeaderFooterProviderService;
 import org.talend.repository.ProjectManager;
 import org.talend.repository.RepositoryWorkUnit;
 import org.talend.repository.model.IProxyRepositoryFactory;
@@ -101,6 +101,8 @@ public abstract class AContextualAction extends Action implements ITreeContextua
     private Item oldItem;
 
     private IRepositoryNode node;
+
+    private ISelection selection;
 
     @Override
     public boolean isEditAction() {
@@ -246,12 +248,19 @@ public abstract class AContextualAction extends Action implements ITreeContextua
         this.workbenchPart = workbenchPart;
     }
 
+    public ISelection getSelection() {
+        if (this.selection != null) {
+            return this.selection;
+        }
+        return initSelection();
+    }
+
     /**
      * The repository view selection.
      * 
      * @return the selection
      */
-    public ISelection getSelection() {
+    private ISelection initSelection() {
         if (specialSelectionProvider != null) {
             return specialSelectionProvider.getSelection();
         }
@@ -276,6 +285,18 @@ public abstract class AContextualAction extends Action implements ITreeContextua
             ISelection selection = ((IRepositoryView) activePart).getViewer().getSelection();
             if (!selection.isEmpty()) {
                 return ((IRepositoryView) activePart).getViewer().getSelection();
+            } else {
+                if (node != null) {
+                    selection = new StructuredSelection(node);
+                }
+                return selection;
+            }
+        }
+        if (activePart instanceof IViewPart) {
+            workbenchPart = activePart;
+            ISelection selection = ((IViewPart) activePart).getViewSite().getSelectionProvider().getSelection();
+            if (!selection.isEmpty()) {
+                return selection;
             } else {
                 if (node != null) {
                     selection = new StructuredSelection(node);
@@ -371,12 +392,23 @@ public abstract class AContextualAction extends Action implements ITreeContextua
         this.isToolbar = isToolbar;
     }
 
+    public void setCurrentRepositoryNode(RepositoryNode node) {
+        this.node = node;
+    }
+
+    public RepositoryNode getCurrentRepositoryNode() {
+        if (this.node != null) {
+            return (RepositoryNode) this.node;
+        }
+        return initCurrentRepositoryNode();
+    }
+
     /**
      * DOC qzhang Comment method "getCurrentRepositoryNode".
      * 
      * @return
      */
-    protected RepositoryNode getCurrentRepositoryNode() {
+    protected RepositoryNode initCurrentRepositoryNode() {
         ISelection selection;
         IWorkbenchPage activePage = getActivePage();
         if (activePage == null) {
@@ -607,6 +639,8 @@ public abstract class AContextualAction extends Action implements ITreeContextua
 
         oldItem = null;
         // if (node == null) {
+        // clean old node cache first
+        node = null;
         node = getCurrentRepositoryNode();
         // }
         if (node != null) {
@@ -618,19 +652,30 @@ public abstract class AContextualAction extends Action implements ITreeContextua
                 }
             }
         }
+        final IRepositoryNode userSelectedNode = node;
+        // clean old selection cache first
+        selection = null;
+        final ISelection userSelection = getSelection();
 
         RepositoryWorkUnit<Object> repositoryWorkUnit = new RepositoryWorkUnit<Object>(name, this) {
 
             @Override
             protected void run() throws LoginException, PersistenceException {
-                if (node != null && node.getObject() != null) {
-                    Property property = node.getObject().getProperty();
-                    // only avoid NPE if item has been deleted in svn
-                    if (property != null) {
+                try {
+                    node = userSelectedNode;
+                    selection = userSelection;
+                    if (node != null && node.getObject() != null) {
+                        Property property = node.getObject().getProperty();
+                        // only avoid NPE if item has been deleted in svn
+                        if (property != null) {
+                            doRun();
+                        }
+                    } else {
                         doRun();
                     }
-                } else {
-                    doRun();
+                } finally {
+                    node = null;
+                    selection = null;
                 }
             }
         };
@@ -746,5 +791,10 @@ public abstract class AContextualAction extends Action implements ITreeContextua
 
     public void setUnloadResourcesAfter(boolean unloadResourcesAfter) {
         this.unloadResourcesAfter = unloadResourcesAfter;
+    }
+
+    @Override
+    public ITreeContextualAction clone() throws CloneNotSupportedException {
+        return (ITreeContextualAction) super.clone();
     }
 }

@@ -27,7 +27,6 @@ public enum ETalendMavenVariables {
 
     ProjectName,
     ProjectId,
-    ProjectBranch,
 
     CodesGroupId,
     CodesArtifactId,
@@ -59,6 +58,8 @@ public enum ETalendMavenVariables {
     RoutineGroupId,
     PigudfGroupId
     //
+    , ProjectDistributionManagementRepositoryId, 
+    ProjectDistributionManagementRepositoryUrl
     ;
 
     public String getName() {
